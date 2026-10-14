@@ -1,0 +1,626 @@
+#!/usr/bin/env bash
+#================================================================
+#  ar0x mirror v2.2 — mirror any website into ~/Downloads
+#  a legendary little terminal app built on wget.
+#
+#  usage:   ar0xmirror                interactive
+#           ar0xmirror example.com    site prefilled
+#           ar0xmirror example.com -y mirror now, no menus
+#
+#  needs:   bash + wget. nothing else.
+#
+#  crafted by ar0x · killtoneizuku@gmail.com
+#  github.com/ar0x1
+#================================================================
+set -u
+
+VERSION="2.2.0"
+AX_DIR="$HOME/.config/ar0xmirror"
+AX_HISTORY="$AX_DIR/history"
+WPID=""
+FIRSTDRAW=1
+SCR=()
+CURSOR=""
+
+# ---------- palette: black + crystal blue-green ----------
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-dumb}" != "dumb" ]; then
+  RST=$'\e[0m' B=$'\e[1m' D=$'\e[2m'
+  AQUA=$'\e[38;5;51m' TEAL=$'\e[38;5;80m' INK=$'\e[38;5;255m'
+  GRAY=$'\e[38;5;247m' DG=$'\e[38;5;241m' RED=$'\e[38;5;203m'
+  G1=$'\e[38;5;51m' G2=$'\e[38;5;50m' G3=$'\e[38;5;49m'
+  G4=$'\e[38;5;44m' G5=$'\e[38;5;43m' G6=$'\e[38;5;38m'
+else
+  RST='' B='' D='' AQUA='' TEAL='' INK='' GRAY='' DG='' RED=''
+  G1='' G2='' G3='' G4='' G5='' G6=''
+fi
+
+# ---------- glyphs ----------
+UTF8=0
+[ "$(locale charmap 2>/dev/null)" = "UTF-8" ] && UTF8=1
+if [ "$UTF8" -eq 1 ]; then
+  GTL='╭' GTR='╮' GBL='╰' GBR='╯' GDL='├' GDR='┤' GH='─' GV='│'
+  DIA='◆' DOT='·' DASH='—' ARR='↳' TRI='▸' XGL='✗' ELL='…' BARF='█' BARE='░'
+  SPIN=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+  ART=(
+    '  ███   ██████   █████  █     █'
+    ' █   █  █     █ █     █  █   █ '
+    '█     █ █     █ █     █   █ █  '
+    '███████ ██████  █     █   █ █  '
+    '█     █ █   ██  █     █  █   █ '
+    '█     █ █    █   █████  █     █'
+  )
+  MART=(
+    '█     █   ███   ██████  ██████   █████  ██████ '
+    '██   ██    █    █     █ █     █ █     █ █     █'
+    '█ █ █ █    █    █     █ █     █ █     █ █     █'
+    '█  █  █    █    ██████  ██████  █     █ ██████ '
+    '█     █    █    █   ██  █   ██  █     █ █   ██ '
+    '█     █   ███   █    █  █    █   █████  █    █ '
+  )
+else
+  GTL='+' GTR='+' GBL='+' GBR='+' GDL='+' GDR='+' GH='-' GV='|'
+  DIA='*' DOT='-' DASH='-' ARR='>' TRI='>' XGL='x' ELL='..' BARF='#' BARE='.'
+  SPIN=('|' '/' '-' '\')
+fi
+
+# ---------- width / height tiers ----------
+COLS=$(tput cols 2>/dev/null || echo 80)
+case "$COLS" in ''|*[!0-9]*) COLS=80;; esac
+[ "$COLS" -gt 78 ] && COLS=78
+[ "$COLS" -lt 50 ] && COLS=50
+LINES=$(tput lines 2>/dev/null || echo 24)
+case "$LINES" in ''|*[!0-9]*) LINES=24;; esac
+BIGART=1; [ "$LINES" -lt 24 ] && BIGART=0
+FULLART=1; [ "$LINES" -lt 30 ] && FULLART=0
+[ "${AR0X_ART:-}" = "force" ] && FULLART=1
+BARW=$((COLS-10)); [ "$BARW" -gt 40 ] && BARW=40
+BARFULL=$((BARW/3))
+BSTATE=0
+
+# ---------- text helpers ----------
+trunc(){ local s=$1 m=$2
+  [ "${#s}" -gt "$m" ] && s="${s:0:$((m-1))}$ELL"
+  printf '%s' "$s"; }
+
+hsize(){ awk -v b="${1:-0}" 'BEGIN{u="BKMGT";i=1
+  while(b>=1024&&i<5){b/=1024;i++}
+  if(i==1)printf "%dB",b; else printf "%.1f%s",b,substr(u,i,1)}'; }
+
+mmss(){ printf '%02d:%02d' $(( ${1:-0}/60 )) $(( ${1:-0}%60 )); }
+
+hrule(){ local n=$1 s; printf -v s '%*s' "$n" ''; printf '%s' "${s// /$GH}"; }
+
+# ---------- screen engine: compose → single-write draw ----------
+scr(){ SCR+=("$1"); }
+scr_cursor(){ CURSOR="$1;$2"; }
+
+draw(){
+  if [ "$FIRSTDRAW" -eq 1 ]; then printf '\e[2J'; FIRSTDRAW=0; fi
+  printf '\e[H'
+  local i=0 n=${#SCR[@]}
+  while [ "$i" -lt "$n" ]; do
+    if [ $((i+1)) -lt "$n" ]; then
+      printf '%s\e[K\n' "${SCR[$i]}"
+    else
+      printf '%s\e[K' "${SCR[$i]}"
+    fi
+    i=$((i+1))
+  done
+  printf '\e[J'
+  if [ -n "$CURSOR" ]; then
+    printf '\e[%sH\e[?25h' "$CURSOR"
+  else
+    printf '\e[?25l'
+  fi
+}
+
+# ---------- frame builders (all rows close at exactly COLS) ----------
+frame_open(){ # $1 title  $2 title color
+  local t r
+  t=$(trunc "$1" $((COLS-14)))
+  r=$((COLS-7-${#t})); [ "$r" -lt 1 ] && r=1
+  scr "$DG$GTL$GH$RST $AQUA$DIA$RST${2:-$B$TEAL} $t$RST $DG$(hrule $r)$GTR$RST"
+}
+frame_blank(){ scr "$DG$GV$RST$(printf '%*s' $((COLS-2)) '')$DG$GV$RST"; }
+frame_div(){ scr "$DG$GDL$(hrule $((COLS-2)))$GDR$RST"; }
+frame_close(){ scr "$DG$GBL$(hrule $((COLS-2)))$GBR$RST"; }
+
+line_in(){ # $1 colored content  $2 its visible length
+  local pad=$((COLS-4-$2)); [ "$pad" -lt 1 ] && pad=1
+  scr "$DG$GV$RST  $1$RST$(printf '%*s' "$pad" '')$DG$GV$RST"
+}
+frow(){ # $1 key  $2 value  $3 value color
+  local k v
+  k=$(printf '%-8s' "$1")
+  v=$(trunc "$2" $((COLS-20)))
+  line_in "$GRAY$k$RST ${3:-$INK}$v$RST" "$((9+${#v}))"
+}
+fcmd(){ local c; c=$(trunc "$1" $((COLS-12)))
+  line_in "$DG\$$RST $AQUA$c$RST" "$((2+${#c}))"; }
+ftext(){ # $1 plain text  $2 color  $3 indent
+  local t ind pad
+  ind=${3:-2}
+  t=$(trunc "$1" $((COLS-6-ind)))
+  pad=$((COLS-2-ind-${#t})); [ "$pad" -lt 1 ] && pad=1
+  scr "$DG$GV$RST$(printf '%*s' "$ind" '')${2:-$GRAY}$t$RST$(printf '%*s' "$pad" '')$DG$GV$RST"
+}
+fverify(){ # $1 command  $2 output
+  local c o
+  c=$(trunc "$1" $((COLS-10))); o=$(trunc "$2" $((COLS-10)))
+  line_in "$DG\$$RST $GRAY$c$RST" "$((2+${#c}))"
+  line_in "   $AQUA$o$RST" "$((3+${#o}))"
+}
+cell(){ local lbl; lbl=$(printf '%-7s' "$2")
+  printf '%s%s%s %s%s%s' "$B$AQUA" "$1" "$RST" "$GRAY" "$lbl" "$RST"; }
+leg(){ # k1 l1 k2 l2 [k3 l3]
+  local c1 c2 c3 P
+  c1=$(cell "$1" "$2"); c2=$(cell "$3" "$4"); c3=''
+  P="$1 $(printf '%-7s' "$2")  $3 $(printf '%-7s' "$4")"
+  if [ -n "${5:-}" ]; then
+    c3=$(cell "$5" "$6"); P="$P  $5 $(printf '%-7s' "$6")"
+  fi
+  line_in "$c1  $c2${c3:+  $c3}$RST" "${#P}"
+}
+hdr(){ # $1 tagline
+  scr ''
+  scr "  $AQUA$DIA$RST ${B}ar0x mirror${RST}${DG} v$VERSION $DOT $1${RST}"
+  scr ''
+}
+
+# ---------- banner ----------
+banner_lines(){
+  local i p tg mt
+  local -a grad=("$G1" "$G2" "$G3" "$G4" "$G5" "$G6")
+  scr ''
+  p=$(( (COLS-19)/2 )); [ "$p" -lt 0 ] && p=0
+  scr "$(printf '%*s' "$p" '')$DG$(hrule 8)$RST$AQUA $DIA $RST$DG$(hrule 8)$RST"
+  scr ''
+  if [ "$UTF8" -eq 1 ] && [ "$BIGART" -eq 1 ]; then
+    p=$(( (COLS-31)/2 )); [ "$p" -lt 0 ] && p=0
+    for i in 0 1 2 3 4 5; do
+      scr "$(printf '%*s' "$p" '')${grad[$i]}${ART[$i]}$RST"
+    done
+    scr ''
+    if [ "$FULLART" -eq 1 ]; then
+      # the word MIRROR, pixel-carved in the same font as AR0X
+      p=$(( (COLS-47)/2 )); [ "$p" -lt 0 ] && p=0
+      for i in 0 1 2 3 4 5; do
+        scr "$(printf '%*s' "$p" '')${grad[$i]}${MART[$i]}$RST"
+      done
+    else
+      p=$(( (COLS-16)/2 )); [ "$p" -lt 0 ] && p=0
+      scr "$(printf '%*s' "$p" '')$B$TEAL"'M  I  R  R  O  R'"$RST"
+    fi
+  else
+    p=$(( (COLS-9)/2 )); [ "$p" -lt 0 ] && p=0
+    scr "$(printf '%*s' "$p" '')$B$AQUA"'A  R  0  X'"$RST"
+    p=$(( (COLS-11)/2 )); [ "$p" -lt 0 ] && p=0
+    scr "$(printf '%*s' "$p" '')$B$TEAL"'M I R R O R'"$RST"
+  fi
+  scr ''
+  tg="one command $DOT the whole site $DOT yours forever"
+  p=$(( (COLS-${#tg})/2 )); [ "$p" -lt 0 ] && p=0
+  scr "$(printf '%*s' "$p" '')$GRAY$tg$RST"
+  mt="v$VERSION $DOT crafted by ar0x $DOT github.com/ar0x1"
+  p=$(( (COLS-${#mt})/2 )); [ "$p" -lt 0 ] && p=0
+  scr "$(printf '%*s' "$p" '')$DG v$VERSION $DOT crafted by $RST$B$TEAL"'ar0x'"$RST$DG $DOT github.com/ar0x1$RST"
+  scr ''
+}
+
+# ---------- chrome ----------
+need_wget(){
+  command -v wget >/dev/null 2>&1 && return 0
+  SCR=(); CURSOR=''
+  hdr 'cannot continue'
+  frame_open 'WGET NOT FOUND' "$B$RED"
+  frame_blank
+  frow 'needed' "wget $DASH preinstalled nearly everywhere"
+  frame_blank
+  frow 'debian' 'sudo apt install wget'
+  frow 'fedora' 'sudo dnf install wget'
+  frow 'arch'   'sudo pacman -S wget'
+  frame_blank
+  frame_close
+  draw
+  exit 1
+}
+load_last(){
+  LAST_URL=''
+  [ -f "$AX_HISTORY" ] && LAST_URL=$(tail -n 1 "$AX_HISTORY" | cut -f2)
+}
+show_err(){ # $1 message
+  SCR=(); CURSOR=''
+  hdr 'hold on'
+  frame_open 'HOLD ON' "$B$RED"
+  frame_blank
+  ftext "$XGL  $1" "$RED"
+  frame_blank
+  frame_close
+  draw
+  sleep 1.3
+}
+usage(){ cat <<EOF
+ar0x mirror $VERSION — mirror any website into ~/Downloads
+
+usage:
+  ar0xmirror                  interactive (recommended)
+  ar0xmirror example.com      start with a site prefilled
+  ar0xmirror example.com -y   mirror immediately, no menus
+
+options:
+  -y, --yes      run with maxed defaults, no menus
+  -h, --help     this help
+  -v, --version  print version
+
+the command it runs:
+  wget -mkEpnp -P ~/Downloads <site>
+  then verifies with du -sh and find | wc -l
+
+crafted by ar0x — killtoneizuku@gmail.com — github.com/ar0x1
+EOF
+}
+
+# ---------- step 1 · the site ----------
+ask_url(){
+  local input pv
+  while :; do
+    SCR=(); CURSOR=''
+    banner_lines
+    frame_open 'SITE TO MIRROR'
+    frame_blank
+    if [ -n "$LAST_URL" ]; then
+      ftext "last mirror: ${LAST_URL#https://} $DASH enter reuses it" "$DG"
+      frame_blank
+    fi
+    pv="$GV  $TRI https://"
+    scr_cursor "$(( ${#SCR[@]} + 1 ))" "$(( ${#pv} + 1 ))"
+    scr "$DG$GV$RST  $AQUA$TRI$RST $B$TEAL"'https://'"$RST"
+    frame_blank
+    frame_close
+    scr ''
+    scr "  $D$(trunc 'type or paste a site - full urls work too' $((COLS-4)))$RST"
+    draw
+    IFS= read -r input || { printf '\e[?25h\n'; exit 0; }
+    printf '\e[?25l'
+    [ -z "$input" ] && [ -n "$LAST_URL" ] && input="$LAST_URL"
+    SITE=$(printf '%s' "$input" | tr -d '[:space:]' | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://##; s#^/##')
+    if [[ "$SITE" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(/[!-~]*)?$ ]]; then
+      URL="https://$SITE"; HOST=${SITE%%/*}
+      return 0
+    fi
+    SCR=(); CURSOR=''
+    banner_lines
+    frame_open 'SITE TO MIRROR'
+    frame_blank
+    ftext "$XGL  that does not look like a site $DASH try example.com" "$RED"
+    frame_blank
+    frame_close
+    draw
+    sleep 1.2
+  done
+}
+
+# ---------- step 2 · settings (maxed by default) ----------
+DEST='~/Downloads' WAIT=0 LIMIT='' UA='' EXTRA=''
+REPLY2=''
+
+preview_cmd(){
+  local s="wget -mkEpnp -nv -P $DEST"
+  [ "$WAIT" -gt 0 ] && s="$s --wait=$WAIT"
+  [ -n "$LIMIT" ] && s="$s --limit-rate=$LIMIT"
+  [ -n "$UA" ] && s="$s --user-agent=<agent>"
+  [ -n "$EXTRA" ] && s="$s $EXTRA"
+  printf '%s %s' "$s" "${URL:-https://<site>}"
+}
+
+draw_settings(){
+  local Pc Cc
+  SCR=(); CURSOR=''
+  hdr 'one wget command, maxed out'
+  frame_open 'READY TO MIRROR'
+  frame_blank
+  frow 'site'  "$SITE" "$B$AQUA"
+  frow 'flags' "maxed $DOT -mkEpnp $DASH always all on"
+  frow 'into'  "$DEST/$HOST/"
+  [ "$WAIT" -gt 0 ] && frow 'wait' "${WAIT}s between requests"
+  [ -n "$LIMIT" ] && frow 'limit' "$LIMIT"
+  [ -n "$UA" ] && frow 'agent' "$UA"
+  [ -n "$EXTRA" ] && frow 'extra' "$EXTRA"
+  frame_blank
+  fcmd "$(preview_cmd)"
+  frame_blank
+  frame_div
+  Pc="$TRI enter $DASH begin the mirror"
+  Cc="$AQUA$TRI$RST $B$INK enter$RST $GRAY$DASH begin the mirror$RST"
+  line_in "$Cc" "${#Pc}"
+  frame_blank
+  leg d folder w wait l limit
+  leg u agent x flags r reset
+  leg b 'new site' q quit
+  frame_close
+  draw
+}
+
+ask_field(){ # $1 frame title  $2 label  $3 current  $4 hint → REPLY2
+  local v pv
+  SCR=(); CURSOR=''
+  hdr 'adjust the crawl'
+  frame_open "$1"
+  frame_blank
+  frow 'current' "$3" "$AQUA"
+  frame_blank
+  pv="$GV  $2 $TRI "
+  scr_cursor "$(( ${#SCR[@]} + 1 ))" "$(( ${#pv} + 1 ))"
+  scr "$DG$GV$RST  $GRAY$2$RST $AQUA$TRI$RST "
+  frame_blank
+  frame_close
+  scr ''
+  scr "  $D$(trunc "$4" $((COLS-4)))$RST"
+  draw
+  IFS= read -r v || v=''
+  printf '\e[?25l'
+  REPLY2=$v
+}
+
+settings(){
+  local key v
+  while :; do
+    draw_settings
+    key=''
+    IFS= read -rsn1 key || key=''
+    case "$key" in
+      '') return 0 ;;
+      q|Q) return 2 ;;
+      b|B) return 1 ;;
+      r|R) DEST='~/Downloads'; WAIT=0; LIMIT=''; UA=''; EXTRA='' ;;
+      d|D) ask_field 'DESTINATION FOLDER' 'destination folder' "$DEST" 'enter saves - empty keeps current'
+           v=$REPLY2; [ -n "$v" ] && DEST="$v" ;;
+      w|W) ask_field 'WAIT BETWEEN REQUESTS' 'wait seconds' "$WAIT" 'whole seconds - 0 disables'
+           v=$REPLY2
+           if [ -n "$v" ]; then
+             if [[ "$v" =~ ^[0-9]+$ ]]; then WAIT="$v"
+             else show_err 'wait must be a whole number of seconds'; fi
+           fi ;;
+      l|L) ask_field 'RATE LIMIT' 'rate limit' "${LIMIT:-off}" 'like 500k or 2m - empty turns it off'
+           v=$REPLY2
+           if [ -z "$v" ]; then LIMIT=''
+           elif [[ "$v" =~ ^[0-9]+[kKmM]?$ ]]; then LIMIT="$v"
+           else show_err 'rate limit format: 500k or 2m'; fi ;;
+      u|U) ask_field 'USER AGENT' 'user agent' "${UA:-wget default}" 'empty returns to wget default'
+           UA=$REPLY2 ;;
+      x|X) ask_field 'EXTRA WGET FLAGS' 'extra flags' "${EXTRA:-none}" 'added verbatim to the command'
+           EXTRA=$REPLY2 ;;
+    esac
+  done
+}
+
+# ---------- step 3 · mirror + verify ----------
+last_saved(){ # $1 logfile
+  local p
+  p=$(grep -oE '(->|→) "[^"]+"' "$1" 2>/dev/null | tail -n 1)
+  if [ -n "$p" ]; then
+    p=${p#*'"'}; p=${p%'"'}
+    printf '%s' "$p"; return 0
+  fi
+  p=$(grep -oE 'URL:https?://[^ ]+' "$1" 2>/dev/null | tail -n 1)
+  printf '%s' "${p#URL:}"
+}
+
+draw_progress(){ # $1 fr  $2 files  $3 bytes  $4 last  $5 rate  $6 elapsed
+  local fr=$1 files=$2 bytes=$3 last=$4 rate=$5 el=$6
+  local P C lv barC i pos Pc
+  SCR=(); CURSOR=''
+  hdr 'mirroring now'
+  frame_open "MIRRORING $DOT $HOST"
+  frame_blank
+  P="${SPIN[fr]} $files files $DOT $(hsize "$bytes") $DOT $(mmss "$el") $DOT $(hsize "$rate")/s"
+  C="$B$AQUA${SPIN[fr]}$RST $B$INK$files$RST$GRAY files$RST $DG$DOT$RST $AQUA$(hsize "$bytes")$RST $DG$DOT$RST $GRAY$(mmss "$el")$RST $DG$DOT$RST $AQUA$(hsize "$rate")/s$RST"
+  line_in "$C" "${#P}"
+  frame_blank
+  lv=$(trunc "${last:-connecting$ELL}" $((COLS-12)))
+  line_in "$DG$ARR$RST $GRAY$lv$RST" "$((2+${#lv}))"
+  frame_blank
+  barC=''
+  for ((i=0; i<BARW; i++)); do
+    pos=$((i-BSTATE)); [ "$pos" -lt 0 ] && pos=$((pos+BARW))
+    if [ "$pos" -lt "$BARFULL" ]; then barC="$barC$AQUA$BARF"; else barC="$barC$DG$BARE"; fi
+  done
+  line_in "$barC$RST" "$BARW"
+  frame_blank
+  Pc="ctrl+c stops clean $DASH the partial mirror is kept"
+  line_in "$DG$Pc$RST" "${#Pc}"
+  frame_close
+  draw
+}
+
+run_mirror(){
+  local dest target log rc fr tick files bytes rate pbytes last
+  local dt inst fcount dush bfin avg sum el Pa Ca
+  dest=${DEST/#\~/$HOME}
+  if ! mkdir -p "$dest" 2>/dev/null; then
+    show_err "cannot create folder: $dest"; return 1
+  fi
+  target="$dest/$HOST"
+  log=$(mktemp /tmp/ar0xmirror.XXXXXX 2>/dev/null) || { show_err 'cannot create a temp log'; return 1; }
+
+  local -a a=( -mkEpnp -nv -P "$dest" )
+  [ "$WAIT" -gt 0 ] && a+=( --wait="$WAIT" )
+  [ -n "$LIMIT" ] && a+=( --limit-rate="$LIMIT" )
+  [ -n "$UA" ] && a+=( --user-agent="$UA" )
+  local -a ex=()
+  if [ -n "$EXTRA" ]; then read -r -a ex <<< "$EXTRA"; fi
+  [ "${#ex[@]}" -gt 0 ] && a+=( "${ex[@]}" )
+  a+=( "$URL" )
+
+  SECONDS=0
+  wget "${a[@]}" >"$log" 2>&1 &
+  WPID=$!
+  fr=0; tick=0; files=0; bytes=0; rate=0; pbytes=0; last=''
+  while kill -0 "$WPID" 2>/dev/null; do
+    tick=$((tick+1))
+    if [ $((tick%2)) -eq 1 ]; then
+      files=$(find "$target" -type f 2>/dev/null | wc -l | tr -d '[:space:]')
+      bytes=$(du -sb "$target" 2>/dev/null | cut -f1); bytes=${bytes:-0}
+      if [ "$tick" -gt 1 ]; then
+        dt=$((bytes-pbytes)); [ "$dt" -lt 0 ] && dt=0
+        inst=$((dt*2)); rate=$(( (rate*3+inst)/4 ))
+      fi
+      pbytes=$bytes
+      last=$(last_saved "$log")
+    fi
+    draw_progress "$fr" "$files" "$bytes" "$last" "$rate" "$SECONDS"
+    fr=$(( (fr+1) % ${#SPIN[@]} ))
+    BSTATE=$(( (BSTATE+1) % BARW ))
+    sleep 0.25
+  done
+  wait "$WPID"; rc=$?
+  WPID=''
+
+  fcount=$(find "$target" -type f 2>/dev/null | wc -l | tr -d '[:space:]')
+  dush=$(du -sh "$target" 2>/dev/null | awk '{print $1}')
+  bfin=$(du -sb "$target" 2>/dev/null | cut -f1); bfin=${bfin:-0}
+  avg=0; [ "$SECONDS" -gt 0 ] && avg=$((bfin/SECONDS))
+
+  SCR=(); CURSOR=''
+  hdr 'mirror report'
+  if [ "$rc" -eq 0 ]; then
+    frame_open 'MIRROR COMPLETE'
+  else
+    frame_open "MIRROR FINISHED $DOT ERRORS" "$B$RED"
+  fi
+  frame_blank
+  frow 'site'    "$HOST"
+  frow 'files'   "${fcount:-0}"
+  frow 'on disk' "${dush:--}"
+  frow 'time'    "$(mmss "$SECONDS")"
+  frow 'saved'   "$DEST/$HOST/"
+  [ -f "$target/index.html" ] && frow 'browse' "$DEST/$HOST/index.html"
+  if [ "$rc" -ne 0 ]; then
+    frame_blank
+    ftext "$XGL  wget exited with code $rc" "$RED"
+    while IFS= read -r el; do
+      [ -n "$el" ] && ftext "$XGL  $el" "$RED"
+    done < <(grep -iE 'ERROR|failed|refused|timed out' "$log" 2>/dev/null | tail -n 3)
+    ftext "full log kept at $log" "$DG"
+  fi
+  frame_blank
+  frame_div
+  fverify "du -sh ./$HOST" "${dush:--}  ./$HOST"
+  fverify "find ./$HOST -type f | wc -l" "${fcount:-0}"
+  frame_blank
+  frame_div
+  Pa="$TRI o open offline copy $DOT m mirror another $DOT any other key exits"
+  Ca="$AQUA$TRI$RST $B$INK o$RST$GRAY open offline copy$RST $DG$DOT$RST $B$INK m$RST$GRAY mirror another$RST $DG$DOT$RST$GRAY any other key exits$RST"
+  line_in "$Ca" "${#Pa}"
+  frame_close
+  draw
+  printf '\e[?25h'
+  sum=$(grep -m1 'Downloaded:' "$log" 2>/dev/null)
+  [ -n "$sum" ] && printf '\n  %s%s%s\n' "$D" "$sum" "$RST"
+
+  if [ "$rc" -eq 0 ]; then
+    rm -f "$log"
+    mkdir -p "$AX_DIR" 2>/dev/null
+    printf '%s\t%s\t%s files\t%s\n' "$(date '+%Y-%m-%d %H:%M')" \
+      "$URL" "${fcount:-0}" "${dush:--}" >> "$AX_HISTORY" 2>/dev/null
+    LAST_URL="$URL"
+  fi
+  return 0
+}
+
+open_mirror(){
+  local t what
+  t="${DEST/#\~/$HOME}/$HOST"; what="$t"
+  [ -f "$t/index.html" ] && what="$t/index.html"
+  if command -v xdg-open >/dev/null 2>&1; then
+    ( xdg-open "$what" >/dev/null 2>&1 ) &
+    printf '\n  %s%s%s opening %s%s%s\n' "$AQUA" "$TRI" "$RST" "$INK" "$what" "$RST"
+  else
+    printf '\n  %sno xdg-open here %s browse to %s%s%s\n' "$DG" "$DASH" "$INK" "$what" "$RST"
+  fi
+}
+post_actions(){
+  local key
+  printf '\e[?25h'
+  while :; do
+    key=''
+    IFS= read -rsn1 key || key=''
+    case "$key" in
+      o|O) open_mirror ;;
+      m|M) printf '\e[?25l'; return 1 ;;
+      *)   printf '\e[?25l'; return 0 ;;
+    esac
+  done
+}
+
+cline(){ local p=$(( (COLS-$2)/2 )); [ "$p" -lt 0 ] && p=0
+  printf '%*s%s\n' "$p" '' "$1"; }
+goodbye(){
+  printf '\e[?25h\n'
+  cline "$DG$(hrule 8)$RST$AQUA $DIA $RST$DG$(hrule 8)$RST" 19
+  printf '\n'
+  cline "$D$GRAY the web, now yours.$RST" 19
+  printf '\n'
+  cline "$DG crafted by $RST$B$TEAL ar0x$RST" 15
+  cline "$DG mail $DOT $RST$GRAY killtoneizuku@gmail.com$RST" 30
+  cline "$DG code $DOT $RST$GRAY github.com/ar0x1$RST" 23
+  printf '\n'
+}
+
+# ---------- main ----------
+main(){
+  local pre='' auto=0 st pa
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -h|--help)    usage; exit 0 ;;
+      -v|--version) printf 'ar0x mirror %s\n' "$VERSION"; exit 0 ;;
+      -y|--yes)     auto=1 ;;
+      -*)           printf 'unknown option: %s\n\n' "$1"; usage; exit 1 ;;
+      *)            pre="$1" ;;
+    esac
+    shift
+  done
+
+  trap 'printf "\e[?25h\e[0m\n"' EXIT
+  on_int(){
+    [ -n "$WPID" ] && kill "$WPID" 2>/dev/null
+    printf '\e[?25h'
+    printf '\n\n%s%s interrupted %s the partial mirror is kept%s\n' "$RED" "$XGL" "$DASH" "$RST"
+    exit 130
+  }
+  trap on_int INT TERM
+
+  need_wget
+  load_last
+  URL=''
+
+  while :; do
+    if [ -n "$pre" ]; then
+      SITE=$(printf '%s' "$pre" | tr -d '[:space:]' | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://##; s#^/##')
+      pre=''
+      if [[ "$SITE" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(/[!-~]*)?$ ]]; then
+        URL="https://$SITE"; HOST=${SITE%%/*}
+      else
+        printf '%s\n' "${RED}${XGL} '$SITE' does not look like a site${RST}"
+        exit 1
+      fi
+    fi
+    [ -z "$URL" ] && ask_url
+
+    if [ "$auto" -eq 1 ]; then
+      auto=0
+    else
+      settings; st=$?
+      [ "$st" -eq 1 ] && { URL=''; continue; }
+      [ "$st" -eq 2 ] && break
+    fi
+
+    run_mirror || continue
+    post_actions; pa=$?
+    [ "$pa" -eq 0 ] && break
+    URL=''
+  done
+
+  goodbye
+}
+main "$@"
