@@ -1,6 +1,5 @@
 <div align="center">
-
-<img src="./assets/banner.svg" alt="ar0xmirror — terminal-inspired website mirroring tool" width="880" />
+<img src="./assets/banner.svg" alt="AR0X MIRROR" width="100%">
 
 <br>
 
