@@ -1,17 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="880" height="26" viewBox="0 0 880 26"
-     font-family="'DejaVu Sans Mono','Menlo','Consolas',monospace">
-  <style>@keyframes dp{50%{opacity:.35}} .dia{animation:dp 3.2s ease-in-out infinite}</style>
-  <path d="M20 13 H400" stroke="#2A3642" stroke-width="1.5"/>
-  <path d="M480 13 H860" stroke="#2A3642" stroke-width="1.5"/>
-  <text x="440" y="18" text-anchor="middle" font-size="12" fill="#2EE6C5" class="dia">◆</text>
-  <text y="18" font-size="9" fill="#2EE6C5">
-    &lt;animate attributeName="x" values="30;850;30" dur="10s" repeatCount="indefinite"/&gt;
-    &lt;animate attributeName="opacity" values="0;1;.2;1;0" keyTimes="0;.12;.5;.88;1" dur="10s" repeatCount="indefinite"/&gt;
-    ◆
-  </text>
-  <text y="18" font-size="9" fill="#2EE6C5">
-    &lt;animate attributeName="x" values="850;30;850" dur="10s" repeatCount="indefinite"/&gt;
-    &lt;animate attributeName="opacity" values="0;1;.2;1;0" keyTimes="0;.12;.5;.88;1" dur="10s" repeatCount="indefinite"/&gt;
-    ◆
-  </text>
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AR0X MIRROR divider - self-contained animated SVG (pure SMIL), GitHub README safe -->
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="26" viewBox="0 0 880 26" role="img">
+  <title>AR0X MIRROR divider</title>
+
+  <!-- hairlines -->
+  <path d="M20 13 H400"  stroke="#2A3642" stroke-width="1.5" fill="none"/>
+  <path d="M480 13 H860" stroke="#2A3642" stroke-width="1.5" fill="none"/>
+
+  <!-- traveling diamond: left to right (base opacity 0 = hidden if animation is unavailable) -->
+  <polygon points="0,-4 4,0 0,4 -4,0" fill="#2EE6C5" opacity="0" transform="translate(30 13)">
+    <animateTransform attributeName="transform" type="translate"
+                      values="30 13;850 13" dur="10s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;1;.2;1;0"
+             keyTimes="0;.12;.5;.88;1" dur="10s" repeatCount="indefinite"/>
+  </polygon>
+
+  <!-- traveling diamond: right to left -->
+  <polygon points="0,-4 4,0 0,4 -4,0" fill="#2EE6C5" opacity="0" transform="translate(850 13)">
+    <animateTransform attributeName="transform" type="translate"
+                      values="850 13;30 13" dur="10s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;1;.2;1;0"
+             keyTimes="0;.12;.5;.88;1" dur="10s" repeatCount="indefinite"/>
+  </polygon>
+
+  <!-- center diamond: gentle pulse -->
+  <polygon points="440,8 445,13 440,18 435,13" fill="#2EE6C5">
+    <animate attributeName="opacity" values="1;.35;1" keyTimes="0;.5;1"
+             calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1"
+             dur="3.2s" repeatCount="indefinite"/>
+  </polygon>
 </svg>
