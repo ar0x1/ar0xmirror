@@ -1,63 +1,85 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="880" height="500" viewBox="0 0 880 500"
-     font-family="'DejaVu Sans Mono','Menlo','Consolas',monospace">
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AR0X MIRROR banner - self-contained static SVG, safe for GitHub README embedding -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="880" height="520" viewBox="0 0 880 520" preserveAspectRatio="xMidYMid meet" role="img">
+  <title>AR0X MIRROR</title>
+
   <defs>
-    <linearGradient id="flow" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="880" y2="0" spreadMethod="repeat">
+    <!-- Teal wash across the title (static, hot spot centered on x=440) -->
+    <linearGradient id="titleTeal" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="880" y2="0">
       <stop offset="0"    stop-color="#1FB3A0"/>
-      <stop offset="0.40" stop-color="#2EE6C5"/>
-      <stop offset="0.50" stop-color="#9DFFF0"/>
-      <stop offset="0.60" stop-color="#2EE6C5"/>
+      <stop offset="0.35" stop-color="#2EE6C5"/>
+      <stop offset="0.5"  stop-color="#9DFFF0"/>
+      <stop offset="0.65" stop-color="#2EE6C5"/>
       <stop offset="1"    stop-color="#1FB3A0"/>
-      <animateTransform attributeName="gradientTransform" type="translate"
-                        from="0 0" to="880 0" dur="5s" repeatCount="indefinite"/>
     </linearGradient>
-    <radialGradient id="aura" cx="0.5" cy="0.42" r="0.65">
-      <stop offset="0" stop-color="#2EE6C5" stop-opacity="0.10"/>
-      <stop offset="1" stop-color="#2EE6C5" stop-opacity="0"/>
+
+    <!-- Ambient glow behind the lettering (replaces the old blur filter) -->
+    <radialGradient id="aura" cx="0.5" cy="0.44" r="0.55">
+      <stop offset="0"    stop-color="#2EE6C5" stop-opacity="0.12"/>
+      <stop offset="0.45" stop-color="#2EE6C5" stop-opacity="0.05"/>
+      <stop offset="1"    stop-color="#2EE6C5" stop-opacity="0"/>
     </radialGradient>
-    <filter id="blur" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="7"/>
-    </filter>
+
+    <!-- "AR0X" as pure vector pixel blocks: 14px blocks on an exact 18px grid -->
+    <g id="word-ar0x">
+      <!-- A -->
+      <path d="M199 94h50v14h-50zM181 112h14v14h-14zM253 112h14v14h-14zM163 130h14v14h-14zM271 130h14v14h-14zM163 148h122v14h-122zM163 166h14v14h-14zM271 166h14v14h-14zM163 184h14v14h-14zM271 184h14v14h-14z"/>
+      <!-- R -->
+      <path d="M307 94h104v14h-104zM307 112h14v14h-14zM415 112h14v14h-14zM307 130h14v14h-14zM415 130h14v14h-14zM307 148h104v14h-104zM307 166h14v14h-14zM379 166h32v14h-32zM307 184h14v14h-14zM397 184h14v14h-14z"/>
+      <!-- 0 -->
+      <path d="M469 94h86v14h-86zM451 112h14v14h-14zM559 112h14v14h-14zM451 130h14v14h-14zM559 130h14v14h-14zM451 148h14v14h-14zM559 148h14v14h-14zM451 166h14v14h-14zM559 166h14v14h-14zM469 184h86v14h-86z"/>
+      <!-- X -->
+      <path d="M595 94h14v14h-14zM703 94h14v14h-14zM613 112h14v14h-14zM685 112h14v14h-14zM631 130h14v14h-14zM667 130h14v14h-14zM631 148h14v14h-14zM667 148h14v14h-14zM613 166h14v14h-14zM685 166h14v14h-14zM595 184h14v14h-14zM703 184h14v14h-14z"/>
+    </g>
+
+    <!-- "MIRROR" -->
+    <g id="word-mirror">
+      <!-- M -->
+      <path d="M55 254h14v14h-14zM163 254h14v14h-14zM55 272h32v14h-32zM145 272h32v14h-32zM55 290h14v14h-14zM91 290h14v14h-14zM127 290h14v14h-14zM163 290h14v14h-14zM55 308h14v14h-14zM109 308h14v14h-14zM163 308h14v14h-14zM55 326h14v14h-14zM163 326h14v14h-14zM55 344h14v14h-14zM163 344h14v14h-14z"/>
+      <!-- I -->
+      <path d="M199 254h50v14h-50zM217 272h14v14h-14zM217 290h14v14h-14zM217 308h14v14h-14zM217 326h14v14h-14zM199 344h50v14h-50z"/>
+      <!-- R -->
+      <path d="M271 254h104v14h-104zM271 272h14v14h-14zM379 272h14v14h-14zM271 290h14v14h-14zM379 290h14v14h-14zM271 308h104v14h-104zM271 326h14v14h-14zM343 326h32v14h-32zM271 344h14v14h-14zM361 344h14v14h-14z"/>
+      <!-- R -->
+      <path d="M415 254h104v14h-104zM415 272h14v14h-14zM523 272h14v14h-14zM415 290h14v14h-14zM523 290h14v14h-14zM415 308h104v14h-104zM415 326h14v14h-14zM487 326h32v14h-32zM415 344h14v14h-14zM505 344h14v14h-14z"/>
+      <!-- O -->
+      <path d="M577 254h86v14h-86zM559 272h14v14h-14zM667 272h14v14h-14zM559 290h14v14h-14zM667 290h14v14h-14zM559 308h14v14h-14zM667 308h14v14h-14zM559 326h14v14h-14zM667 326h14v14h-14zM577 344h86v14h-86z"/>
+      <!-- R -->
+      <path d="M703 254h104v14h-104zM703 272h14v14h-14zM811 272h14v14h-14zM703 290h14v14h-14zM811 290h14v14h-14zM703 308h104v14h-104zM703 326h14v14h-14zM775 326h32v14h-32zM703 344h14v14h-14zM793 344h14v14h-14z"/>
+    </g>
   </defs>
-  <style>
-    @keyframes gp{50%{opacity:.14}}
-    @keyframes dp{50%{opacity:.35}}
-    @keyframes scan{from{transform:translateY(70px)}to{transform:translateY(478px)}}
-    .glow{animation:gp 4s ease-in-out infinite}
-    .dia{animation:dp 3.2s ease-in-out infinite}
-    .scan{animation:scan 6.5s linear infinite}
-  </style>
 
-  <rect width="880" height="500" rx="28" fill="#0A0E14"/>
-  <rect x="1.5" y="1.5" width="877" height="497" rx="26" fill="none" stroke="#1C2733" stroke-width="1.5"/>
-  <rect width="880" height="500" rx="28" fill="url(#aura)"/>
-  <rect class="scan" width="880" height="2" fill="#2EE6C5" opacity="0.06"/>
+  <!-- Card -->
+  <rect width="880" height="520" rx="28" fill="#0A1410"/>
+  <rect width="880" height="520" rx="28" fill="url(#aura)"/>
+  <rect x="1.5" y="1.5" width="877" height="517" rx="26.5" fill="none" stroke="#1E3B34" stroke-width="1.5"/>
 
-  <text x="440" y="44" text-anchor="middle" font-size="13" fill="#3A4750">────────────────</text>
-  <text x="440" y="49" text-anchor="middle" font-size="11" fill="#2EE6C5" class="dia">◆</text>
+  <!-- Header ornament -->
+  <rect x="340" y="65" width="86" height="2" fill="#2A5F52"/>
+  <rect x="454" y="65" width="86" height="2" fill="#2A5F52"/>
+  <polygon points="440,59 447,66 440,73 433,66" fill="#2EE6C5"/>
 
-  <g id="wordA" fill="url(#flow)" font-size="26" xml:space="preserve" text-anchor="middle">
-    <text x="440" y="84">  ███   ██████   █████  █     █</text>
-    <text x="440" y="114"> █   █  █     █ █     █  █   █ </text>
-    <text x="440" y="144">█     █ █     █ █     █   █ █  </text>
-    <text x="440" y="174">███████ ██████  █     █   █ █  </text>
-    <text x="440" y="204">█     █ █   ██  █     █  █   █ </text>
-    <text x="440" y="234">█     █ █    █   █████  █     █</text>
-  </g>
+  <!-- Glow: two-step stroke halo (no filters, no animation) -->
+  <use href="#word-ar0x"   xlink:href="#word-ar0x"   fill="none" stroke="#2EE6C5" stroke-width="14" opacity="0.06"/>
+  <use href="#word-mirror" xlink:href="#word-mirror" fill="none" stroke="#2EE6C5" stroke-width="14" opacity="0.06"/>
+  <use href="#word-ar0x"   xlink:href="#word-ar0x"   fill="none" stroke="#2EE6C5" stroke-width="7"  opacity="0.16"/>
+  <use href="#word-mirror" xlink:href="#word-mirror" fill="none" stroke="#2EE6C5" stroke-width="7"  opacity="0.16"/>
 
-  <text x="440" y="264" text-anchor="middle" font-size="10" fill="#2EE6C5" class="dia">◆</text>
+  <!-- Divider ornament -->
+  <rect x="372" y="225" width="50" height="2" fill="#1D453C"/>
+  <rect x="458" y="225" width="50" height="2" fill="#1D453C"/>
+  <polygon points="440,220 446,226 440,232 434,226" fill="#2EE6C5" opacity="0.9"/>
 
-  <g id="wordB" fill="url(#flow)" font-size="26" xml:space="preserve" text-anchor="middle">
-    <text x="440" y="296">█     █   ███   ██████  ██████   █████  ██████ </text>
-    <text x="440" y="326">██   ██    █    █     █ █     █ █     █ █     █</text>
-    <text x="440" y="356">█ █ █ █    █    █     █ █     █ █     █ █     █</text>
-    <text x="440" y="386">█  █  █    █    ██████  ██████  █     █ ██████ </text>
-    <text x="440" y="416">█     █    █    █   ██  █   ██  █     █ █   ██ </text>
-    <text x="440" y="446">█     █   ███   █    █  █    █   █████  █    █ </text>
-  </g>
+  <!-- Title -->
+  <use href="#word-ar0x"   xlink:href="#word-ar0x"   fill="url(#titleTeal)"/>
+  <use href="#word-mirror" xlink:href="#word-mirror" fill="url(#titleTeal)"/>
 
-  <use href="#wordA" filter="url(#blur)" class="glow" opacity="0.22"/>
-  <use href="#wordB" filter="url(#blur)" class="glow" opacity="0.22"/>
+  <!-- Subtitle -->
+  <text x="440" y="404" text-anchor="middle" font-family="Menlo, Consolas, 'Courier New', monospace"
+        font-size="15" letter-spacing="1.5" fill="#8FA8A3">one command &#183; the whole site &#183; yours forever</text>
 
-  <text x="440" y="474" text-anchor="middle" font-size="14" letter-spacing="3" fill="#8FA8A3">one command · the whole site · yours forever</text>
-  <text x="440" y="493" text-anchor="middle" font-size="11.5" letter-spacing="1" fill="#5C716D">v2.2.0 · crafted by ar0x · github.com/ar0x1</text>
+  <!-- Footer -->
+  <text x="440" y="442" text-anchor="middle" font-family="Menlo, Consolas, 'Courier New', monospace"
+        font-size="11.5" letter-spacing="1" fill="#5C716D">v2.2.0 &#183; crafted by ar0x &#183; github.com/ar0x1</text>
 </svg>
